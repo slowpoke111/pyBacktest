@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "pyBacktest"
-version = "0.0.1"
+version = "0.0.85"
 description = "A backtesting framework for stock price prediction strategies"
 authors = [
     { name = "Ben Bell", email = "slow111poke@gmail.com" }
@@ -17,8 +17,8 @@ long_description = "file: readme.md"
 
 [project.dynamic]
 readme = ["README.md"]
-requires-python = ">=3.6"
-license = "LGPL"
+requires-python = [">=3.8"]
+license = ["LGPL"]
 classifiers = [
     "Programming Language :: Python :: 3",
     "License :: OSI Approved :: GNU Lesser General Public License v3 (LGPLv3)",
