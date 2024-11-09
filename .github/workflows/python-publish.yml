@@ -1,0 +1,30 @@
+name: Upload Python Package
+
+on:
+  release:
+    types: [published]  # This triggers the action when a release is published
+
+permissions:
+  contents: read  # This gives the action permission to read the repository contents
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest  # Use the latest Ubuntu runner for the build
+
+    steps:
+    - uses: actions/checkout@v4  # Checkout the repository
+    - name: Set up Python
+      uses: actions/setup-python@v3  # Set up the Python version (3.x)
+      with:
+        python-version: '3.x'  # Use the latest Python 3 version
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip  # Upgrade pip
+        pip install build  # Install the build package to build the distribution
+    - name: Build package
+      run: python -m build  # Build the Python package (creates dist/)
+    - name: Publish package
+      uses: pypa/gh-action-pypi-publish@27b31702a0e7fc50959f5ad993c78deac1bdfc29  # Action to upload to PyPI
+      with:
+        user: __token__  # This is the PyPI username to use, which is always `__token__` for API tokens
+        password: ${{ secrets.PYPI_API_TOKEN }}  # Reference the secret that stores your PyPI API token
