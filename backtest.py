@@ -4,61 +4,14 @@ from typing import *
 import pandas as pd
 from pandas import DataFrame
 from datetime import datetime, timedelta
-from dataclasses import dataclass
-from enum import Enum
 from pandas.tseries.offsets import DateOffset
 from typing import TYPE_CHECKING
+from pyBacktest.trades import execute_buy, execute_sell, execute_market_buy, execute_market_sell
+from pyBacktest.types import TradeType, Holding, Transaction, Order
+from enum import Enum
 
 if TYPE_CHECKING:
     from pyBacktest.strategy import Strategy
-
-class TradeType(Enum):
-    BUY = 1
-    SELL = 2
-    SHORT = 3
-    STOP = 4
-    COVER = 5
-    LIMIT = 6
-    GTC = 7
-    Cancel = 8
-    MARKET_BUY = 9
-    MARKET_SELL = 10
-
-
-@dataclass
-class Holding:
-    tradeType: TradeType
-    ticker: str
-    commission: float
-    executedSuccessfully: bool
-    numShares: int
-    totalCost: float
-
-
-@dataclass
-class Transaction:
-    tradeType: TradeType
-    ticker: str
-    commission: float
-    executedSuccessfully: bool
-    numShares: int
-    pricePerShare: float
-    totalCost: float
-    date: datetime
-    profitLoss: float = 0.0
-    notes: str = ""
-
-
-@dataclass
-class Order:
-    tradeType: TradeType
-    ticker: str
-    numShares: int
-    targetPrice: float
-    duration: str  # 'DAY' or 'GTC'
-    orderDate: datetime
-    active: bool = True
-
 
 class Backtest:
     def __init__(
@@ -192,147 +145,17 @@ class Backtest:
             "transactions": self.transactions,
         }
 
-    def _execute_buy(
-        self, price: float, numShares: int, valid_date: pd.Timestamp
-    ) -> Holding:
-        commission = self.calculateCommision(price, numShares)
-        total_cost = numShares * price + commission
-
-        if self.cash < total_cost:
-            raise Exception("Insufficient funds")
-
-        self.cash -= total_cost
-        holding = Holding(
-            TradeType.BUY,
-            self.ticker,
-            commission,
-            True,
-            numShares,
-            numShares * price,
-        )
-        self.holdings.append(holding)
-
-        self.transactions.append(
-            Transaction(
-                tradeType=TradeType.BUY,
-                ticker=self.ticker,
-                commission=commission,
-                executedSuccessfully=True,
-                numShares=numShares,
-                pricePerShare=price,
-                totalCost=numShares * price,
-                date=valid_date,
-                profitLoss=0.0,
-            )
-        )
-        return holding
+    def _execute_buy(self, price: float, numShares: int, valid_date: pd.Timestamp) -> Holding:
+        return execute_buy(self, price, numShares, valid_date)
 
     def _execute_sell(self, price: float, numShares: int, valid_date: pd.Timestamp) -> Holding:
-        commission = self.calculateCommision(price, numShares)
-        for holding in self.holdings:
-            if holding.tradeType == TradeType.BUY and holding.numShares >= numShares:
-                self.holdings.remove(holding)
-                self.cash += (numShares * price) - commission
-
-                sell_holding = Holding(
-                    TradeType.SELL,
-                    self.ticker,
-                    commission,
-                    True,
-                    numShares,
-                    numShares * price,
-                )
-
-                profit_loss = (numShares * price) - (
-                    numShares * (holding.totalCost / holding.numShares)
-                )
-                self.transactions.append(
-                    Transaction(
-                        tradeType=TradeType.SELL,
-                        ticker=self.ticker,
-                        commission=commission,
-                        executedSuccessfully=True,
-                        numShares=numShares,
-                        pricePerShare=price,
-                        totalCost=numShares * price,
-                        date=valid_date,
-                        profitLoss=profit_loss,
-                    )
-                )
-                return sell_holding
-        raise Exception("Not enough shares to sell")
+        return execute_sell(self, price, numShares, valid_date)
 
     def _execute_market_buy(self, numShares: int, valid_date: pd.Timestamp) -> Holding:
-        current_price = self.hist.loc[valid_date].Open
-        commission = self.calculateCommision(current_price, numShares)
-        total_cost = numShares * current_price + commission
-
-        if self.cash < total_cost:
-            raise Exception("Insufficient funds for market buy")
-
-        self.cash -= total_cost
-        holding = Holding(
-            TradeType.MARKET_BUY,
-            self.ticker,
-            commission,
-            True,
-            numShares,
-            numShares * current_price
-        )
-        self.holdings.append(holding)
-        
-        self.transactions.append(
-            Transaction(
-                tradeType=TradeType.MARKET_BUY,
-                ticker=self.ticker,
-                commission=commission,
-                executedSuccessfully=True,
-                numShares=numShares,
-                pricePerShare=current_price,
-                totalCost=numShares * current_price,
-                date=valid_date,
-                profitLoss=0.0,
-                notes="Market order"
-            )
-        )
-        return holding
+        return execute_market_buy(self, numShares, valid_date)
 
     def _execute_market_sell(self, numShares: int, valid_date: pd.Timestamp) -> Holding:
-        current_price = self.hist.loc[valid_date].Open
-        commission = self.calculateCommision(current_price, numShares)
-        
-        for holding in self.holdings:
-            if holding.tradeType in [TradeType.BUY, TradeType.MARKET_BUY] and holding.numShares >= numShares:
-                self.holdings.remove(holding)
-                self.cash += (numShares * current_price) - commission
-                
-                profit_loss = (numShares * current_price) - (numShares * (holding.totalCost / holding.numShares))
-                
-                sell_holding = Holding(
-                    TradeType.MARKET_SELL,
-                    self.ticker,
-                    commission,
-                    True,
-                    numShares,
-                    numShares * current_price
-                )
-                
-                self.transactions.append(
-                    Transaction(
-                        tradeType=TradeType.MARKET_SELL,
-                        ticker=self.ticker,
-                        commission=commission,
-                        executedSuccessfully=True,
-                        numShares=numShares,
-                        pricePerShare=current_price,
-                        totalCost=numShares * current_price,
-                        date=valid_date,
-                        profitLoss=profit_loss,
-                        notes="Market order"
-                    )
-                )
-                return sell_holding
-        raise Exception("Not enough shares for market sell")
+        return execute_market_sell(self, numShares, valid_date)
 
     def trade(self, tradeType: TradeType, numShares: int, price: float = None) -> Holding:
         validDate = self.formatDate(self.date)

@@ -2,6 +2,7 @@ from abc import ABC, abstractmethod
 from typing import Dict, Any, Optional, TYPE_CHECKING
 import pandas as pd
 from pyBacktest.utils import calculateSMA
+from pyBacktest.types import TradeType, Holding, Transaction, Order
 
 if TYPE_CHECKING:
     from pyBacktest.backtest import Backtest
