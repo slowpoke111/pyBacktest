@@ -2,6 +2,14 @@
 requires = ["setuptools>=64", "wheel"]
 build-backend = "setuptools.build_meta"
 
-[tool.setuptools]
-long_description = "file: README.md"
-long_description_content_type = "text/markdown"
+[project]
+name = "pyBacktest"
+version = "0.0.1"
+description = "A backtesting framework for stock price prediction strategies"
+authors = [
+    { name = "Ben Bell", email = "slow111poke@gmail.com" }
+]
+dependencies = [
+    "pandas",
+    "numpy"
+]
