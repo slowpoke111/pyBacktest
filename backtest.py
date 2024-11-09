@@ -8,7 +8,6 @@ from dataclasses import dataclass
 from enum import Enum
 from pandas.tseries.offsets import DateOffset
 
-
 class TradeType(Enum):
     BUY = 1
     SELL = 2
@@ -16,6 +15,10 @@ class TradeType(Enum):
     STOP = 4
     COVER = 5
     LIMIT = 6
+    GTC = 7
+    Cancel = 8
+    MARKET_BUY = 9
+    MARKET_SELL = 10
 
 
 @dataclass
@@ -40,6 +43,17 @@ class Transaction:
     date: datetime
     profitLoss: float = 0.0
     notes: str = ""
+
+
+@dataclass
+class Order:
+    tradeType: TradeType
+    ticker: str
+    numShares: int
+    targetPrice: float
+    duration: str  # 'DAY' or 'GTC'
+    orderDate: datetime
+    active: bool = True
 
 
 class Backtest:
@@ -83,6 +97,7 @@ class Backtest:
 
         self.cash: float = cash
         self.holdings: List[Holding] = []
+        self.pending_orders: List[Order] = []
 
     def getValidDate(self, target_date: pd.Timestamp) -> pd.Timestamp:
         if target_date in self.hist.index:
@@ -108,9 +123,56 @@ class Backtest:
         else:
             raise Exception("Invalid commision type")
 
+    def cancelOrder(self, order_index: int) -> bool:
+        if 0 <= order_index < len(self.pending_orders):
+            order = self.pending_orders[order_index]
+            order.active = False
+            self.transactions.append(
+                Transaction(
+                    tradeType=TradeType.Cancel,
+                    ticker=order.ticker,
+                    commission=0,
+                    executedSuccessfully=True,
+                    numShares=order.numShares,
+                    pricePerShare=order.targetPrice,
+                    totalCost=0,
+                    date=self.date,
+                    notes="Order canceled"
+                )
+            )
+            return True
+        return False
+
+    def submitGTCOrder(self, tradeType: TradeType, numShares: int, targetPrice: float) -> Order:
+        order = Order(
+            tradeType=tradeType,
+            ticker=self.ticker,
+            numShares=numShares,
+            targetPrice=targetPrice,
+            duration='GTC',
+            orderDate=self.date
+        )
+        self.pending_orders.append(order)
+        return order
+
+    def _check_pending_orders(self, current_price: float):
+        for order in self.pending_orders[:]:
+            if not order.active:
+                self.pending_orders.remove(order)
+                continue
+                
+            if order.tradeType in [TradeType.BUY, TradeType.COVER] and current_price <= order.targetPrice:
+                self._execute_buy(current_price, order.numShares, self.date)
+                order.active = False
+            elif order.tradeType in [TradeType.SELL, TradeType.SHORT] and current_price >= order.targetPrice:
+                self._execute_sell(current_price, order.numShares, self.date)
+                order.active = False
+
     def next(self):
         self.date += self.interval
         valid_date = self.formatDate(self.date)
+        current_price = self.hist.loc[valid_date].Close
+        self._check_pending_orders(current_price)
         return self.hist.loc[valid_date]
 
     def _execute_buy(
@@ -148,9 +210,7 @@ class Backtest:
         )
         return holding
 
-    def _execute_sell(
-        self, price: float, numShares: int, valid_date: pd.Timestamp
-    ) -> Holding:
+    def _execute_sell(self, price: float, numShares: int, valid_date: pd.Timestamp) -> Holding:
         commission = self.calculateCommision(price, numShares)
         for holding in self.holdings:
             if holding.tradeType == TradeType.BUY and holding.numShares >= numShares:
@@ -185,26 +245,97 @@ class Backtest:
                 return sell_holding
         raise Exception("Not enough shares to sell")
 
-    def trade(self, tradeType: TradeType, numShares: int) -> Holding:
-        valid_date = self.formatDate(self.date)
-        price = self.hist.loc[valid_date].Close
+    def _execute_market_buy(self, numShares: int, valid_date: pd.Timestamp) -> Holding:
+        current_price = self.hist.loc[valid_date].Open
+        commission = self.calculateCommision(current_price, numShares)
+        total_cost = numShares * current_price + commission
 
+        if self.cash < total_cost:
+            raise Exception("Insufficient funds for market buy")
+
+        self.cash -= total_cost
+        holding = Holding(
+            TradeType.MARKET_BUY,
+            self.ticker,
+            commission,
+            True,
+            numShares,
+            numShares * current_price
+        )
+        self.holdings.append(holding)
+        
+        self.transactions.append(
+            Transaction(
+                tradeType=TradeType.MARKET_BUY,
+                ticker=self.ticker,
+                commission=commission,
+                executedSuccessfully=True,
+                numShares=numShares,
+                pricePerShare=current_price,
+                totalCost=numShares * current_price,
+                date=valid_date,
+                profitLoss=0.0,
+                notes="Market order"
+            )
+        )
+        return holding
+
+    def _execute_market_sell(self, numShares: int, valid_date: pd.Timestamp) -> Holding:
+        current_price = self.hist.loc[valid_date].Open
+        commission = self.calculateCommision(current_price, numShares)
+        
+        for holding in self.holdings:
+            if holding.tradeType in [TradeType.BUY, TradeType.MARKET_BUY] and holding.numShares >= numShares:
+                self.holdings.remove(holding)
+                self.cash += (numShares * current_price) - commission
+                
+                profit_loss = (numShares * current_price) - (numShares * (holding.totalCost / holding.numShares))
+                
+                sell_holding = Holding(
+                    TradeType.MARKET_SELL,
+                    self.ticker,
+                    commission,
+                    True,
+                    numShares,
+                    numShares * current_price
+                )
+                
+                self.transactions.append(
+                    Transaction(
+                        tradeType=TradeType.MARKET_SELL,
+                        ticker=self.ticker,
+                        commission=commission,
+                        executedSuccessfully=True,
+                        numShares=numShares,
+                        pricePerShare=current_price,
+                        totalCost=numShares * current_price,
+                        date=valid_date,
+                        profitLoss=profit_loss,
+                        notes="Market order"
+                    )
+                )
+                return sell_holding
+        raise Exception("Not enough shares for market sell")
+
+    def trade(self, tradeType: TradeType, numShares: int, price: float = None) -> Holding:
+        validDate = self.formatDate(self.date)
+        
         trade_handlers = {
-            TradeType.BUY: self._execute_buy,
-            TradeType.SELL: self._execute_sell,
+            TradeType.BUY: lambda p, n, d: self._execute_buy(p, n, d),
+            TradeType.SELL: lambda p, n, d: self._execute_sell(p, n, d),
+            TradeType.MARKET_BUY: lambda p, n, d: self._execute_market_buy(n, d),
+            TradeType.MARKET_SELL: lambda p, n, d: self._execute_market_sell(n, d),
             TradeType.SHORT: NotImplemented,
             TradeType.STOP: NotImplemented,
             TradeType.COVER: NotImplemented,
             TradeType.LIMIT: NotImplemented,
         }
 
-        handler = trade_handlers.get(tradeType)
-        if handler is None:
-            raise ValueError(f"Unsupported trade type: {tradeType}")
-        elif handler is NotImplemented:
-            raise NotImplementedError(f"Trade type not implemented yet: {tradeType}")
+        if tradeType in [TradeType.MARKET_BUY, TradeType.MARKET_SELL]:
+            return trade_handlers[tradeType](None, numShares, validDate)
 
-        return handler(price, numShares, valid_date)
+        price = self.hist.loc[validDate].Close
+        return trade_handlers[tradeType](price, numShares, validDate)
 
     def totalValue(self) -> float:
         total_value = self.cash
