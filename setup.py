@@ -6,7 +6,7 @@ setup(
     author="Ben Bell",
     author_email="slow111poke@gmail.com",
     description="A backtesting framework for stock price prediction strategies",
-    long_description=open('README.md').read(),
+    long_description=open('readme.md').read(),
     long_description_content_type='text/markdown',
     url="https://github.com/slowpoke111/pyBacktest",  
     packages=find_packages(include=['pyBacktest', 'pyBacktest.*']),
