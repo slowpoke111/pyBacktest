@@ -15,6 +15,7 @@ from .utils import (
     getCrossSignals
 )
 
+
 __version__ = "0.0.1"
 __author__ = "Ben Bell"
 

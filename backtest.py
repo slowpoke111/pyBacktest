@@ -7,6 +7,10 @@ from datetime import datetime, timedelta
 from dataclasses import dataclass
 from enum import Enum
 from pandas.tseries.offsets import DateOffset
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from pyBacktest.strategy import Strategy
 
 class TradeType(Enum):
     BUY = 1
@@ -61,6 +65,7 @@ class Backtest:
         self,
         ticker: str,
         cash: float | int,
+        strategy: 'Strategy',
         commision: float | int = 0.0,
         commisionType: str = "flat",
         timePeriod: str = "1mo",
@@ -98,6 +103,8 @@ class Backtest:
         self.cash: float = cash
         self.holdings: List[Holding] = []
         self.pending_orders: List[Order] = []
+        self.strategy = strategy
+        self.strategy.initialize(self)
 
     def getValidDate(self, target_date: pd.Timestamp) -> pd.Timestamp:
         if target_date in self.hist.index:
@@ -173,7 +180,17 @@ class Backtest:
         valid_date = self.formatDate(self.date)
         current_price = self.hist.loc[valid_date].Close
         self._check_pending_orders(current_price)
-        return self.hist.loc[valid_date]
+        row = self.hist.loc[valid_date]
+        self.strategy.next(row)
+        return row
+
+    def run(self) -> Dict[str, Any]:
+        while self.date < self.endDate:
+            self.next()
+        return {
+            "final_value": self.totalValue(),
+            "transactions": self.transactions,
+        }
 
     def _execute_buy(
         self, price: float, numShares: int, valid_date: pd.Timestamp
@@ -344,16 +361,3 @@ class Backtest:
             price = self.hist.loc[valid_date].Close
             total_value += holding.numShares * price
         return total_value
-
-
-if __name__ == "__main__":
-    x = Backtest(
-        "GOOG",
-        10_000.0,
-    )
-
-    for _ in range(5):
-        x.trade(TradeType.BUY, 5)
-        x.next()
-
-    print(f"Total portfolio value: {x.totalValue()}")
