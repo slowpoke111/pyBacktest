@@ -14,18 +14,16 @@ dependencies = [
     "numpy"
 ]
 long_description = "file: readme.md"
-
-[project.dynamic]
-readme = true
-requires-python = true
-license = true
-classifiers = true
-
 readme = "README.md"
 requires-python = ">=3.8"
-license = "LGPL"
+license = { text = "LGPL-3.0-only" }
 classifiers = [
     "Programming Language :: Python :: 3",
     "License :: OSI Approved :: GNU Lesser General Public License v3 (LGPLv3)",
     "Operating System :: OS Independent"
 ]
+
+[project.dynamic]
+requires-python = true
+license = true
+classifiers = true
