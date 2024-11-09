@@ -1,6 +1,6 @@
 from .backtest import Backtest
 from .strategy import Strategy
-from .types import TradeType, Holding, Transaction, Order
+from .tradeTypes import TradeType, Holding, Transaction, Order
 from .utils import (
     calculateSMA,
     calculateEMA,

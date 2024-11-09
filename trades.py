@@ -1,4 +1,7 @@
-from pyBacktest.types import TradeType, Holding, Transaction
+from pyBacktest.tradeTypes import (
+    TradeType, Holding, Transaction,
+    InsufficientFundsError, InsufficientSharesError, ShortPositionError
+)
 import pandas as pd
 
 class Backtest:
@@ -10,9 +13,10 @@ def execute_buy(backtest: Backtest, price: float, numShares: int, valid_date: pd
     total_cost = numShares * price + commission
 
     if backtest.cash < total_cost:
-        raise Exception("Insufficient funds")
+        raise InsufficientFundsError(f"Need ${total_cost:,.2f}, have ${backtest.cash:,.2f}")
 
     backtest.cash -= total_cost
+
     holding = Holding(
         trade_type,
         backtest.ticker,
@@ -62,7 +66,7 @@ def execute_sell(backtest: Backtest, price: float, numShares: int, valid_date: p
                 backtest.holdings.remove(holding)
 
     if shares_to_sell > 0:
-        raise Exception("Not enough shares to sell")
+        raise InsufficientSharesError("Not enough shares to sell")
 
     backtest.cash += total_sell_value - commission
 
@@ -94,9 +98,10 @@ def execute_market_buy(backtest: Backtest, numShares: int, valid_date: pd.Timest
     total_cost = numShares * current_price + commission
 
     if backtest.cash < total_cost:
-        raise Exception("Insufficient funds for market buy")
+        raise InsufficientFundsError(f"Insufficient funds for market buy. Need {total_cost}, have {backtest.cash}")
 
     backtest.cash -= total_cost
+
     holding = Holding(
         TradeType.MARKET_BUY,
         backtest.ticker,
@@ -133,7 +138,7 @@ def execute_market_sell(backtest: Backtest, numShares: int, valid_date: pd.Times
     for holding in backtest.holdings[:]:
         if shares_to_sell <= 0:
             break
-        if holding.tradeType in [TradeType.BUY, TradeType.MARKET_BUY]:
+        if holding.tradeType in [TradeType.BUY, TradeType.MARKET_BUY, TradeType.LIMIT_BUY]:
             sell_shares = min(holding.numShares, shares_to_sell)
             buy_price_per_share = holding.totalCost / holding.numShares
             profit_loss = sell_shares * (current_price - buy_price_per_share)
@@ -148,9 +153,10 @@ def execute_market_sell(backtest: Backtest, numShares: int, valid_date: pd.Times
                 backtest.holdings.remove(holding)
 
     if shares_to_sell > 0:
-        raise Exception("Not enough shares for market sell")
+        raise InsufficientSharesError(f"Not enough shares for market sell. Still need {shares_to_sell} shares")
 
-    backtest.cash += total_sell_value - commission
+    sell_proceeds = total_sell_value - commission
+    backtest.cash += sell_proceeds
 
     backtest.transactions.append(
         Transaction(
@@ -229,10 +235,10 @@ def execute_short_cover(backtest: Backtest, price: float, numShares: int, valid_
                 backtest.holdings.remove(holding)
 
     if shares_to_cover > 0:
-        raise Exception("Not enough short positions to cover")
+        raise ShortPositionError("Not enough short positions to cover")
 
     if backtest.cash < total_cover_cost + commission:
-        raise Exception("Insufficient funds to cover short position")
+        raise InsufficientFundsError(f"Insufficient funds to cover short position. Need ${total_cover_cost + commission:,.2f}, have ${backtest.cash:,.2f}")
 
     backtest.cash -= total_cover_cost + commission
 

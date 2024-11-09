@@ -18,6 +18,27 @@ class TradeType(Enum):
     LIMIT_SELL = 12
 
 
+class InsufficientFundsError(Exception):
+    """Raised when there isn't enough cash to execute a trade"""
+    pass
+
+class InsufficientSharesError(Exception):
+    """Raised when trying to sell more shares than available"""
+    pass
+
+class InvalidCommissionTypeError(Exception):
+    """Raised when an invalid commission type is specified"""
+    pass
+
+class InvalidOrderError(Exception):
+    """Raised when attempting to execute an invalid order"""
+    pass
+
+class ShortPositionError(Exception):
+    """Raised when there's an issue with short selling or covering"""
+    pass
+
+
 @dataclass
 class Holding:
     tradeType: TradeType

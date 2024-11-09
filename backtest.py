@@ -7,7 +7,7 @@ from datetime import datetime, timedelta
 from pandas.tseries.offsets import DateOffset
 from typing import TYPE_CHECKING
 from pyBacktest.trades import execute_buy, execute_sell, execute_market_buy, execute_market_sell, execute_short_sell, execute_short_cover
-from pyBacktest.types import TradeType, Holding, Transaction, Order
+from pyBacktest.tradeTypes import TradeType, Holding, Transaction, Order, InvalidCommissionTypeError, InvalidOrderError
 from enum import Enum
 
 if TYPE_CHECKING:
@@ -20,7 +20,7 @@ class Backtest:
         cash: float | int,
         strategy: 'Strategy',
         commision: float | int = 0.0,
-        commisionType: str = "flat",
+        commisionType: str = "FLAT",
         timePeriod: str = "1mo",
         interval: str = "1d",
         startDate: datetime = datetime(2024, 1, 1),
@@ -74,14 +74,16 @@ class Backtest:
         return self.getValidDate(date)
 
     def calculateCommision(self, price: float, numShares: int) -> float:
-        if self.commisionType == "flat":
+        if self.commisionType == "FLAT":
             return self.commision
-        elif self.commisionType == "percentage":
+        elif self.commisionType == "PERCENTAGE":
             return price * self.commision * numShares
-        elif self.commisionType == "percentage_per_share":
+        elif self.commisionType == "PERCENTAGE_PER_SHARE":
+            return self.commision * numShares
+        elif self.commisionType == "PER_SHARE":
             return self.commision * numShares
         else:
-            raise Exception("Invalid commision type")
+            raise InvalidCommissionTypeError(f"Invalid commission type: {self.commisionType}")
 
     def cancelOrder(self, order_index: int) -> bool:
         if 0 <= order_index < len(self.pending_orders):
@@ -159,7 +161,7 @@ class Backtest:
             self.next()
         return {
             "final_value": self.totalValue(),
-            "transactions": self.transactions,
+            "transactions": self.transactions,  # Ensure transactions are included in the results
         }
 
     def _execute_buy(self, price: float, numShares: int, valid_date: pd.Timestamp, trade_type: TradeType = TradeType.BUY) -> Holding:
@@ -182,8 +184,21 @@ class Backtest:
 
     def trade(self, tradeType: TradeType, numShares: int, price: float = None, duration: str = 'DAY') -> Optional[Holding]:
         validDate = self.formatDate(self.date)
+        current_price = price if price is not None else self.hist.loc[validDate].Close
 
-        if tradeType in [TradeType.LIMIT_BUY, TradeType.LIMIT_SELL]:
+        if tradeType == TradeType.BUY:
+            return self._execute_buy(current_price, numShares, validDate)
+        elif tradeType == TradeType.SELL:
+            return self._execute_sell(current_price, numShares, validDate)
+        elif tradeType == TradeType.MARKET_BUY:
+            return self._execute_market_buy(numShares, validDate)
+        elif tradeType == TradeType.MARKET_SELL:
+            return self._execute_market_sell(numShares, validDate)
+        elif tradeType == TradeType.SHORT_SELL:
+            return self._execute_short_sell(current_price, numShares, validDate)
+        elif tradeType == TradeType.SHORT_COVER:
+            return self._execute_short_cover(current_price, numShares, validDate)
+        elif tradeType in [TradeType.LIMIT_BUY, TradeType.LIMIT_SELL]:
             if price is None:
                 raise ValueError("Price must be specified for limit orders")
             order = Order(
@@ -196,34 +211,8 @@ class Backtest:
             )
             self.pending_orders.append(order)
             return None
-        elif tradeType == TradeType.BUY:
-            order = Order(
-                tradeType=tradeType,
-                ticker=self.ticker,
-                numShares=numShares,
-                targetPrice=price if price is not None else self.hist.loc[validDate].Close,
-                duration='DAY',
-                orderDate=self.date
-            )
-            self.pending_orders.append(order)
-            return None
-        elif tradeType == TradeType.SELL:
-            order = Order(
-                tradeType=tradeType,
-                ticker=self.ticker,
-                numShares=numShares,
-                targetPrice=price if price is not None else self.hist.loc[validDate].Close,
-                duration='DAY',
-                orderDate=self.date
-            )
-            self.pending_orders.append(order)
-            return None
-        elif tradeType == TradeType.MARKET_BUY:
-            return self._execute_market_buy(numShares, validDate)
-        elif tradeType == TradeType.MARKET_SELL:
-            return self._execute_market_sell(numShares, validDate)
         else:
-            raise Exception("Unsupported trade type")
+            raise InvalidOrderError(f"Unsupported trade type: {tradeType}")
 
     def totalValue(self) -> float:
         total_value = self.cash
