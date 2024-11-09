@@ -6,7 +6,7 @@ from pandas import DataFrame
 from datetime import datetime, timedelta
 from pandas.tseries.offsets import DateOffset
 from typing import TYPE_CHECKING
-from pyBacktest.trades import execute_buy, execute_sell, execute_market_buy, execute_market_sell
+from pyBacktest.trades import execute_buy, execute_sell, execute_market_buy, execute_market_sell, execute_short_sell, execute_short_cover
 from pyBacktest.types import TradeType, Holding, Transaction, Order
 from enum import Enum
 
@@ -120,12 +120,29 @@ class Backtest:
             if not order.active:
                 self.pending_orders.remove(order)
                 continue
-                
-            if order.tradeType in [TradeType.BUY, TradeType.COVER] and current_price <= order.targetPrice:
-                self._execute_buy(current_price, order.numShares, self.date)
+
+            # Cancel DAY orders that have expired
+            if order.duration == 'DAY' and order.orderDate < self.date:
                 order.active = False
-            elif order.tradeType in [TradeType.SELL, TradeType.SHORT] and current_price >= order.targetPrice:
-                self._execute_sell(current_price, order.numShares, self.date)
+                continue
+
+            if order.tradeType == TradeType.LIMIT_BUY and current_price <= order.targetPrice:
+                self._execute_buy(order.targetPrice, order.numShares, self.date, TradeType.LIMIT_BUY)
+                order.active = False
+            elif order.tradeType == TradeType.LIMIT_SELL and current_price >= order.targetPrice:
+                self._execute_sell(order.targetPrice, order.numShares, self.date, TradeType.LIMIT_SELL)
+                order.active = False
+            elif order.tradeType == TradeType.BUY and current_price <= order.targetPrice:
+                self._execute_buy(order.targetPrice, order.numShares, self.date)
+                order.active = False
+            elif order.tradeType == TradeType.SELL and current_price >= order.targetPrice:
+                self._execute_sell(order.targetPrice, order.numShares, self.date)
+                order.active = False
+            elif order.tradeType == TradeType.SHORT_SELL and current_price >= order.targetPrice:
+                self._execute_short_sell(order.targetPrice, order.numShares, self.date)
+                order.active = False
+            elif order.tradeType == TradeType.SHORT_COVER and current_price <= order.targetPrice:
+                self._execute_short_cover(order.targetPrice, order.numShares, self.date)
                 order.active = False
 
     def next(self):
@@ -145,11 +162,11 @@ class Backtest:
             "transactions": self.transactions,
         }
 
-    def _execute_buy(self, price: float, numShares: int, valid_date: pd.Timestamp) -> Holding:
-        return execute_buy(self, price, numShares, valid_date)
+    def _execute_buy(self, price: float, numShares: int, valid_date: pd.Timestamp, trade_type: TradeType = TradeType.BUY) -> Holding:
+        return execute_buy(self, price, numShares, valid_date, trade_type)
 
-    def _execute_sell(self, price: float, numShares: int, valid_date: pd.Timestamp) -> Holding:
-        return execute_sell(self, price, numShares, valid_date)
+    def _execute_sell(self, price: float, numShares: int, valid_date: pd.Timestamp, trade_type: TradeType = TradeType.SELL) -> Holding:
+        return execute_sell(self, price, numShares, valid_date, trade_type)
 
     def _execute_market_buy(self, numShares: int, valid_date: pd.Timestamp) -> Holding:
         return execute_market_buy(self, numShares, valid_date)
@@ -157,25 +174,56 @@ class Backtest:
     def _execute_market_sell(self, numShares: int, valid_date: pd.Timestamp) -> Holding:
         return execute_market_sell(self, numShares, valid_date)
 
-    def trade(self, tradeType: TradeType, numShares: int, price: float = None) -> Holding:
+    def _execute_short_sell(self, price: float, numShares: int, valid_date: pd.Timestamp) -> Holding:
+        return execute_short_sell(self, price, numShares, valid_date)
+
+    def _execute_short_cover(self, price: float, numShares: int, valid_date: pd.Timestamp) -> Holding:
+        return execute_short_cover(self, price, numShares, valid_date)
+
+    def trade(self, tradeType: TradeType, numShares: int, price: float = None, duration: str = 'DAY') -> Optional[Holding]:
         validDate = self.formatDate(self.date)
-        
-        trade_handlers = {
-            TradeType.BUY: lambda p, n, d: self._execute_buy(p, n, d),
-            TradeType.SELL: lambda p, n, d: self._execute_sell(p, n, d),
-            TradeType.MARKET_BUY: lambda p, n, d: self._execute_market_buy(n, d),
-            TradeType.MARKET_SELL: lambda p, n, d: self._execute_market_sell(n, d),
-            TradeType.SHORT: NotImplemented,
-            TradeType.STOP: NotImplemented,
-            TradeType.COVER: NotImplemented,
-            TradeType.LIMIT: NotImplemented,
-        }
 
-        if tradeType in [TradeType.MARKET_BUY, TradeType.MARKET_SELL]:
-            return trade_handlers[tradeType](None, numShares, validDate)
-
-        price = self.hist.loc[validDate].Close
-        return trade_handlers[tradeType](price, numShares, validDate)
+        if tradeType in [TradeType.LIMIT_BUY, TradeType.LIMIT_SELL]:
+            if price is None:
+                raise ValueError("Price must be specified for limit orders")
+            order = Order(
+                tradeType=tradeType,
+                ticker=self.ticker,
+                numShares=numShares,
+                targetPrice=price,
+                duration=duration,
+                orderDate=self.date
+            )
+            self.pending_orders.append(order)
+            return None
+        elif tradeType == TradeType.BUY:
+            order = Order(
+                tradeType=tradeType,
+                ticker=self.ticker,
+                numShares=numShares,
+                targetPrice=price if price is not None else self.hist.loc[validDate].Close,
+                duration='DAY',
+                orderDate=self.date
+            )
+            self.pending_orders.append(order)
+            return None
+        elif tradeType == TradeType.SELL:
+            order = Order(
+                tradeType=tradeType,
+                ticker=self.ticker,
+                numShares=numShares,
+                targetPrice=price if price is not None else self.hist.loc[validDate].Close,
+                duration='DAY',
+                orderDate=self.date
+            )
+            self.pending_orders.append(order)
+            return None
+        elif tradeType == TradeType.MARKET_BUY:
+            return self._execute_market_buy(numShares, validDate)
+        elif tradeType == TradeType.MARKET_SELL:
+            return self._execute_market_sell(numShares, validDate)
+        else:
+            raise Exception("Unsupported trade type")
 
     def totalValue(self) -> float:
         total_value = self.cash
