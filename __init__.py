@@ -1,4 +1,6 @@
-from .backtest import Backtest, TradeType, Holding, Transaction
+from .backtest import Backtest
+from .strategy import Strategy
+from .types import TradeType, Holding, Transaction, Order
 from .utils import (
     calculateSMA,
     calculateEMA,
@@ -15,15 +17,16 @@ from .utils import (
     getCrossSignals
 )
 
-
 __version__ = "1.0.1"
 __author__ = "Ben Bell"
 
 __all__ = [
     "Backtest",
+    "Strategy",
     "TradeType",
     "Holding",
     "Transaction",
+    "Order",
     "calculateSMA",
     "calculateEMA",
     "calculateRSI",
