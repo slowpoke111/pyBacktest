@@ -2,7 +2,7 @@ from setuptools import setup, find_packages
 
 setup(
     name="pyBacktest",
-    version="0.0.1",
+    version="1.1.0",
     author="Ben Bell",
     author_email="slow111poke@gmail.com",
     description="A backtesting framework for stock price prediction strategies",
