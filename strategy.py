@@ -33,4 +33,3 @@ class Strategy(ABC):
             'position': self.get_position(),
             'total_value': self.backtest.totalValue()
         }
-
