@@ -118,7 +118,7 @@ class Backtest:
         return order
 
     def _check_pending_orders(self, current_price: float):
-        for order in self.pending_orders[:]:
+        for order in self.pending_orders[:]:  # Use slice copy to modify safely
             if not order.active:
                 self.pending_orders.remove(order)
                 continue
@@ -126,26 +126,27 @@ class Backtest:
             # Cancel DAY orders that have expired
             if order.duration == 'DAY' and order.orderDate < self.date:
                 order.active = False
+                self.cancelOrder(self.pending_orders.index(order))
                 continue
 
-            if order.tradeType == TradeType.LIMIT_BUY and current_price <= order.targetPrice:
-                self._execute_buy(order.targetPrice, order.numShares, self.date, TradeType.LIMIT_BUY)
+            try:
+                executed = False
+                if order.tradeType == TradeType.LIMIT_BUY and current_price <= order.targetPrice:
+                    result = self._execute_buy(order.targetPrice, order.numShares, self.date, TradeType.LIMIT_BUY)
+                    executed = True
+                elif order.tradeType == TradeType.LIMIT_SELL and current_price >= order.targetPrice:
+                    result = self._execute_sell(order.targetPrice, order.numShares, self.date, TradeType.LIMIT_SELL)
+                    executed = True
+
+                if executed:
+                    order.active = False
+                    self.pending_orders.remove(order)
+                    if hasattr(self.strategy, 'on_order_filled'):
+                        self.strategy.on_order_filled(order)
+            except Exception as e:
+                print(f"Order execution error: {e}")
                 order.active = False
-            elif order.tradeType == TradeType.LIMIT_SELL and current_price >= order.targetPrice:
-                self._execute_sell(order.targetPrice, order.numShares, self.date, TradeType.LIMIT_SELL)
-                order.active = False
-            elif order.tradeType == TradeType.BUY and current_price <= order.targetPrice:
-                self._execute_buy(order.targetPrice, order.numShares, self.date)
-                order.active = False
-            elif order.tradeType == TradeType.SELL and current_price >= order.targetPrice:
-                self._execute_sell(order.targetPrice, order.numShares, self.date)
-                order.active = False
-            elif order.tradeType == TradeType.SHORT_SELL and current_price >= order.targetPrice:
-                self._execute_short_sell(order.targetPrice, order.numShares, self.date)
-                order.active = False
-            elif order.tradeType == TradeType.SHORT_COVER and current_price <= order.targetPrice:
-                self._execute_short_cover(order.targetPrice, order.numShares, self.date)
-                order.active = False
+                self.pending_orders.remove(order)
 
     def next(self):
         self.date += self.interval
@@ -161,7 +162,8 @@ class Backtest:
             self.next()
         return {
             "final_value": self.totalValue(),
-            "transactions": self.transactions,  # Ensure transactions are included in the results
+            "transactions": self.transactions,
+            "strategy": self.strategy  # Add strategy to results
         }
 
     def _execute_buy(self, price: float, numShares: int, valid_date: pd.Timestamp, trade_type: TradeType = TradeType.BUY) -> Holding:
@@ -177,10 +179,14 @@ class Backtest:
         return execute_market_sell(self, numShares, valid_date)
 
     def _execute_short_sell(self, price: float, numShares: int, valid_date: pd.Timestamp) -> Holding:
-        return execute_short_sell(self, price, numShares, valid_date)
+        holding = execute_short_sell(self, price, numShares, valid_date)
+        holding.shortPosition = True
+        return holding
 
     def _execute_short_cover(self, price: float, numShares: int, valid_date: pd.Timestamp) -> Holding:
-        return execute_short_cover(self, price, numShares, valid_date)
+        holding = execute_short_cover(self, price, numShares, valid_date)
+        holding.shortPosition = False
+        return holding
 
     def trade(self, tradeType: TradeType, numShares: int, price: float = None, duration: str = 'DAY') -> Optional[Holding]:
         validDate = self.formatDate(self.date)
@@ -217,7 +223,12 @@ class Backtest:
     def totalValue(self) -> float:
         total_value = self.cash
         valid_date = self.formatDate(self.date)
+        current_price = self.hist.loc[valid_date].Close
         for holding in self.holdings:
-            price = self.hist.loc[valid_date].Close
-            total_value += holding.numShares * price
+            if holding.shortPosition:
+                # Subtract the liability to buy back the shares
+                total_value -= current_price * holding.numShares
+            else:
+                # Add the value of long positions
+                total_value += current_price * holding.numShares
         return total_value

@@ -24,6 +24,8 @@ def execute_buy(backtest: Backtest, price: float, numShares: int, valid_date: pd
         True,
         numShares,
         numShares * price,
+        shortPosition=False,
+        entryPrice=price  # Set entry price
     )
     backtest.holdings.append(holding)
 
@@ -90,6 +92,7 @@ def execute_sell(backtest: Backtest, price: float, numShares: int, valid_date: p
         True,
         numShares,
         total_sell_value,
+        entryPrice=price
     )
 
 def execute_market_buy(backtest: Backtest, numShares: int, valid_date: pd.Timestamp) -> Holding:
@@ -108,7 +111,8 @@ def execute_market_buy(backtest: Backtest, numShares: int, valid_date: pd.Timest
         commission,
         True,
         numShares,
-        numShares * current_price
+        numShares * current_price,
+        entryPrice=current_price
     )
     backtest.holdings.append(holding)
     
@@ -178,7 +182,8 @@ def execute_market_sell(backtest: Backtest, numShares: int, valid_date: pd.Times
         commission,
         True,
         numShares,
-        total_sell_value
+        total_sell_value,
+        entryPrice=current_price
     )
 
 def execute_short_sell(backtest: Backtest, price: float, numShares: int, valid_date: pd.Timestamp) -> Holding:
@@ -193,6 +198,8 @@ def execute_short_sell(backtest: Backtest, price: float, numShares: int, valid_d
         executedSuccessfully=True,
         numShares=numShares,
         totalCost=numShares * price,
+        shortPosition=True,
+        entryPrice=price  # Set entry price
     )
     backtest.holdings.append(holding)
 
@@ -262,4 +269,6 @@ def execute_short_cover(backtest: Backtest, price: float, numShares: int, valid_
         executedSuccessfully=True,
         numShares=numShares,
         totalCost=total_cover_cost,
+        entryPrice=price,
+        shortPosition=False
     )

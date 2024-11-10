@@ -26,7 +26,8 @@ class Strategy(ABC):
         pass
 
     def get_position(self) -> int:
-        return sum(h.numShares for h in self.backtest.holdings)
+        position = sum(h.numShares if not h.shortPosition else -h.numShares for h in self.backtest.holdings)
+        return position
 
     def get_market_state(self) -> Dict[str, Any]:
         return {

@@ -6,7 +6,7 @@ from typing import Optional
 class TradeType(Enum):
     BUY = 1
     SELL = 2
-    SHORT = 3
+    SHORT_SELL = 3  # Changed from SHORT to SHORT_SELL
     STOP = 4
     COVER = 5
     GTC = 6
@@ -47,6 +47,8 @@ class Holding:
     executedSuccessfully: bool
     numShares: int
     totalCost: float
+    entryPrice: float
+    shortPosition: bool = False
 
 
 @dataclass
