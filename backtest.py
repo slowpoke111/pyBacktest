@@ -121,7 +121,7 @@ class Backtest:
         current_price = self.hist.loc[valid_date].Close
         self._check_pending_orders(current_price)
         row = self.hist.loc[valid_date]
-        self.strategy.next(row)
+        self.strategy.step(row)  # Call step instead of next
         return row
 
     def run(self) -> Dict[str, Any]:

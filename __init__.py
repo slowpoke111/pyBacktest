@@ -16,7 +16,7 @@ from .utils import (
 from .commissions import calculate_commission
 from .orders import cancel_order, submit_gtc_order
 
-__version__ = "1.1.3"
+__version__ = "1.1.4"
 __author__ = "Ben Bell"
 
 __all__ = [

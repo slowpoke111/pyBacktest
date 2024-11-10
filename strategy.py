@@ -3,6 +3,7 @@ from typing import Dict, Any, Optional, TYPE_CHECKING
 import pandas as pd
 from pyBacktest.utils import calculateSMA
 from pyBacktest.tradeTypes import TradeType, Holding, Transaction, Order
+from typing_extensions import deprecated
 
 if TYPE_CHECKING:
     from pyBacktest.backtest import Backtest
@@ -21,8 +22,12 @@ class Strategy(ABC):
     def setup(self) -> None:
         pass
 
-    @abstractmethod
+    @deprecated("Use step() instead")
     def next(self, row: pd.Series) -> None:
+        pass
+
+    @abstractmethod
+    def step(self, row: pd.Series) -> None:
         pass
 
     def get_position(self) -> int:

@@ -59,3 +59,28 @@ def calculateReturnStats(returns: pd.Series) -> dict:
         "sharpeRatio": calculateSharpeRatio(returns),
         "maxDrawdown": calculateDrawdown(returns)[0]
     }
+
+def analyzeResults(results):
+    initial_investment = 10000
+    final_value = results['final_value']
+    total_return = ((final_value - initial_investment) / initial_investment) * 100
+    
+    start_date = results['transactions'][0].date
+    end_date = results['strategy'].backtest.date
+    days_held = (end_date - start_date).days
+
+    print("\nStrategy Results:")
+    print(f"Initial Investment: ${initial_investment:,.2f}")
+    print(f"Final Value: ${final_value:,.2f}")
+    print(f"Total Return: {total_return:.2f}%")
+    print(f"Entry Date: {start_date.strftime('%Y-%m-%d')}")
+    print(f"Exit Date: {end_date.strftime('%Y-%m-%d')}")
+    print(f"Days Held: {days_held}")
+    if days_held > 0:
+        annualized_return = (total_return / (days_held/365))
+        print(f"Annualized Return: {annualized_return:.2f}%")
+    
+    print("\nTransactions:")
+    for t in results['transactions']:
+        print(f"{t.tradeType}: {t.numShares} shares @ ${t.pricePerShare:.2f}")
+        print(f"Date: {t.date.strftime('%Y-%m-%d')}")
