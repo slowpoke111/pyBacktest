@@ -7,7 +7,9 @@ from datetime import datetime, timedelta
 from pandas.tseries.offsets import DateOffset
 from typing import TYPE_CHECKING
 from pyBacktest.trades import execute_buy, execute_sell, execute_market_buy, execute_market_sell, execute_short_sell, execute_short_cover
-from pyBacktest.tradeTypes import TradeType, Holding, Transaction, Order, InvalidCommissionTypeError, InvalidOrderError
+from pyBacktest.tradeTypes import TradeType, Holding, Transaction, Order, InvalidOrderError
+from pyBacktest.commissions import calculate_commission
+from pyBacktest.orders import cancel_order, submit_gtc_order
 from enum import Enum
 
 if TYPE_CHECKING:
@@ -74,48 +76,13 @@ class Backtest:
         return self.getValidDate(date)
 
     def calculateCommision(self, price: float, numShares: int) -> float:
-        if self.commisionType == "FLAT":
-            return self.commision
-        elif self.commisionType == "PERCENTAGE":
-            return price * self.commision * numShares
-        elif self.commisionType == "PERCENTAGE_PER_SHARE":
-            return self.commision * numShares
-        elif self.commisionType == "PER_SHARE":
-            return self.commision * numShares
-        else:
-            raise InvalidCommissionTypeError(f"Invalid commission type: {self.commisionType}")
+        return calculate_commission(self.commisionType, self.commision, price, numShares)
 
     def cancelOrder(self, order_index: int) -> bool:
-        if 0 <= order_index < len(self.pending_orders):
-            order = self.pending_orders[order_index]
-            order.active = False
-            self.transactions.append(
-                Transaction(
-                    tradeType=TradeType.Cancel,
-                    ticker=order.ticker,
-                    commission=0,
-                    executedSuccessfully=True,
-                    numShares=order.numShares,
-                    pricePerShare=order.targetPrice,
-                    totalCost=0,
-                    date=self.date,
-                    notes="Order canceled"
-                )
-            )
-            return True
-        return False
+        return cancel_order(self, order_index)
 
     def submitGTCOrder(self, tradeType: TradeType, numShares: int, targetPrice: float) -> Order:
-        order = Order(
-            tradeType=tradeType,
-            ticker=self.ticker,
-            numShares=numShares,
-            targetPrice=targetPrice,
-            duration='GTC',
-            orderDate=self.date
-        )
-        self.pending_orders.append(order)
-        return order
+        return submit_gtc_order(self, tradeType, numShares, targetPrice)
 
     def _check_pending_orders(self, current_price: float):
         for order in self.pending_orders[:]:  # Use slice copy to modify safely
@@ -163,7 +130,7 @@ class Backtest:
         return {
             "final_value": self.totalValue(),
             "transactions": self.transactions,
-            "strategy": self.strategy  # Add strategy to results
+            "strategy": self.strategy
         }
 
     def _execute_buy(self, price: float, numShares: int, valid_date: pd.Timestamp, trade_type: TradeType = TradeType.BUY) -> Holding:

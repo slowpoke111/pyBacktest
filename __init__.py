@@ -11,13 +11,12 @@ from .utils import (
     calculateSharpeRatio,
     calculateVolatility,
     calculateBeta,
-    calculateReturnStats,
-    detectCrossover,
-    detectCrossunder,
-    getCrossSignals
+    calculateReturnStats
 )
+from .commissions import calculate_commission
+from .orders import cancel_order, submit_gtc_order
 
-__version__ = "1.0.1"
+__version__ = "1.1.3"
 __author__ = "Ben Bell"
 
 __all__ = [
@@ -37,7 +36,7 @@ __all__ = [
     "calculateVolatility",
     "calculateBeta",
     "calculateReturnStats",
-    "detectCrossover",
-    "detectCrossunder",
-    "getCrossSignals"
+    "calculate_commission",
+    "cancel_order",
+    "submit_gtc_order"
 ]

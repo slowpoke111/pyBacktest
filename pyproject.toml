@@ -11,7 +11,8 @@ authors = [
 ]
 dependencies = [
     "pandas",
-    "numpy"
+    "numpy",
+    "yfinance"
 ]
 requires-python = ">=3.8"
 license = { text = "LGPL-3.0-only" }
@@ -23,4 +24,4 @@ classifiers = [
 readme = "readme.md"
 
 [project.urls]
-Home = "https://github.com/yourusername/pyBacktest"
+Home = "https://github.com/slowpoke111/pyBacktest"

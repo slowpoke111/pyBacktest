@@ -59,21 +59,3 @@ def calculateReturnStats(returns: pd.Series) -> dict:
         "sharpeRatio": calculateSharpeRatio(returns),
         "maxDrawdown": calculateDrawdown(returns)[0]
     }
-
-def detectCrossover(series1: pd.Series, series2: pd.Series) -> pd.Series:
-    previousDiff = (series1 - series2).shift(1)
-    currentDiff = series1 - series2
-    return (previousDiff < 0) & (currentDiff > 0)
-
-def detectCrossunder(series1: pd.Series, series2: pd.Series) -> pd.Series:
-    previousDiff = (series1 - series2).shift(1)
-    currentDiff = series1 - series2
-    return (previousDiff > 0) & (currentDiff < 0)
-
-def getCrossSignals(fastMA: pd.Series, slowMA: pd.Series) -> pd.Series:
-    crossovers = detectCrossover(fastMA, slowMA)
-    crossunders = detectCrossunder(fastMA, slowMA)
-    signals = pd.Series(0, index=fastMA.index)
-    signals[crossovers] = 1
-    signals[crossunders] = -1
-    return signals

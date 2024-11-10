@@ -8,11 +8,12 @@ setup(
     description="A backtesting framework for stock price prediction strategies",
     long_description=open('readme.md').read(),
     long_description_content_type='text/markdown',
-    url="https://github.com/slowpoke111/pyBacktest",  
+    url="https://github.com/slowpoke111/pyBacktest",
     packages=find_packages(include=['pyBacktest', 'pyBacktest.*']),
     install_requires=[
         "pandas",
         "numpy",
+        "yfinance"
     ],
     classifiers=[
         "Programming Language :: Python :: 3",

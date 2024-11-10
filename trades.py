@@ -25,7 +25,7 @@ def execute_buy(backtest: Backtest, price: float, numShares: int, valid_date: pd
         numShares,
         numShares * price,
         shortPosition=False,
-        entryPrice=price  # Set entry price
+        entryPrice=price
     )
     backtest.holdings.append(holding)
 
@@ -199,7 +199,7 @@ def execute_short_sell(backtest: Backtest, price: float, numShares: int, valid_d
         numShares=numShares,
         totalCost=numShares * price,
         shortPosition=True,
-        entryPrice=price  # Set entry price
+        entryPrice=price
     )
     backtest.holdings.append(holding)
 
