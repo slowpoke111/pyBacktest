@@ -1,4 +1,4 @@
-from .backtest import Backtest
+from .backtest import Backtest, BacktestResult
 from .strategy import Strategy
 from .tradeTypes import TradeType, Holding, Transaction, Order
 from .utils import (
@@ -16,11 +16,12 @@ from .utils import (
 from .commissions import calculate_commission
 from .orders import cancel_order, submit_gtc_order
 
-__version__ = "1.1.4"
+__version__ = "1.1.5"
 __author__ = "Ben Bell"
 
 __all__ = [
     "Backtest",
+    "BacktestResult",
     "Strategy",
     "TradeType",
     "Holding",

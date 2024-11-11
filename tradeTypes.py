@@ -6,7 +6,7 @@ from typing import Optional
 class TradeType(Enum):
     BUY = 1
     SELL = 2
-    SHORT_SELL = 3  # Changed from SHORT to SHORT_SELL
+    SHORT_SELL = 3
     STOP = 4
     COVER = 5
     GTC = 6
@@ -19,23 +19,18 @@ class TradeType(Enum):
 
 
 class InsufficientFundsError(Exception):
-    """Raised when there isn't enough cash to execute a trade"""
     pass
 
 class InsufficientSharesError(Exception):
-    """Raised when trying to sell more shares than available"""
     pass
 
 class InvalidCommissionTypeError(Exception):
-    """Raised when an invalid commission type is specified"""
     pass
 
 class InvalidOrderError(Exception):
-    """Raised when attempting to execute an invalid order"""
     pass
 
 class ShortPositionError(Exception):
-    """Raised when there's an issue with short selling or covering"""
     pass
 
 

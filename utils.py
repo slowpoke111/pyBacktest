@@ -2,6 +2,7 @@ from typing import List, Union, Tuple
 import pandas as pd
 import numpy as np
 from datetime import datetime, timedelta
+from pyBacktest.backtest import BacktestResult
 
 def calculateSMA(data: pd.Series, period: int) -> pd.Series:
     return data.rolling(window=period).mean()
@@ -60,13 +61,13 @@ def calculateReturnStats(returns: pd.Series) -> dict:
         "maxDrawdown": calculateDrawdown(returns)[0]
     }
 
-def analyzeResults(results):
+def analyzeResults(results: BacktestResult):
     initial_investment = 10000
-    final_value = results['final_value']
+    final_value = results.final_value
     total_return = ((final_value - initial_investment) / initial_investment) * 100
     
-    start_date = results['transactions'][0].date
-    end_date = results['strategy'].backtest.date
+    start_date = results.transactions[0].date
+    end_date = results.strategy.backtest.date
     days_held = (end_date - start_date).days
 
     print("\nStrategy Results:")
@@ -81,6 +82,15 @@ def analyzeResults(results):
         print(f"Annualized Return: {annualized_return:.2f}%")
     
     print("\nTransactions:")
-    for t in results['transactions']:
+    for t in results.transactions:
         print(f"{t.tradeType}: {t.numShares} shares @ ${t.pricePerShare:.2f}")
         print(f"Date: {t.date.strftime('%Y-%m-%d')}")
+
+def compareBacktests(results1: BacktestResult, results2: BacktestResult) -> dict:
+    comparison = {
+        "final_value_diff": results1.final_value - results2.final_value,
+        "total_return_diff": ((results1.final_value - 10000) / 10000) - ((results2.final_value - 10000) / 10000),
+        "num_transactions_diff": len(results1.transactions) - len(results2.transactions),
+        "better_strategy": "Strategy 1" if results1.final_value > results2.final_value else "Strategy 2"
+    }
+    return comparison

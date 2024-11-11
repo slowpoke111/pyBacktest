@@ -3,17 +3,22 @@ from yfinance import Ticker
 from typing import *
 import pandas as pd
 from pandas import DataFrame
-from datetime import datetime, timedelta
-from pandas.tseries.offsets import DateOffset
+from datetime import datetime
 from typing import TYPE_CHECKING
 from pyBacktest.trades import execute_buy, execute_sell, execute_market_buy, execute_market_sell, execute_short_sell, execute_short_cover
-from pyBacktest.tradeTypes import TradeType, Holding, Transaction, Order, InvalidOrderError
+from pyBacktest.tradeTypes import TradeType, Holding, Order, InvalidOrderError
 from pyBacktest.commissions import calculate_commission
 from pyBacktest.orders import cancel_order, submit_gtc_order
-from enum import Enum
+from dataclasses import dataclass
 
 if TYPE_CHECKING:
     from pyBacktest.strategy import Strategy
+
+@dataclass
+class BacktestResult:
+    final_value: float
+    transactions: List[Holding]
+    strategy: 'Strategy'
 
 class Backtest:
     def __init__(
@@ -84,6 +89,24 @@ class Backtest:
     def submitGTCOrder(self, tradeType: TradeType, numShares: int, targetPrice: float) -> Order:
         return submit_gtc_order(self, tradeType, numShares, targetPrice)
 
+    def calculate_trade_cost(self, tradeType: TradeType, numShares: int, price: float = None) -> float:
+        validDate = self.formatDate(self.date)
+        current_price = price if price is not None else self.hist.loc[validDate].Close
+
+        if tradeType in [TradeType.BUY, TradeType.MARKET_BUY, TradeType.LIMIT_BUY]:
+            commission = self.calculateCommision(current_price, numShares)
+            total_cost = numShares * current_price + commission
+        elif tradeType in [TradeType.SELL, TradeType.MARKET_SELL, TradeType.LIMIT_SELL, TradeType.SHORT_COVER]:
+            commission = self.calculateCommision(current_price, numShares)
+            total_cost = numShares * current_price - commission
+        elif tradeType == TradeType.SHORT_SELL:
+            commission = self.calculateCommision(current_price, numShares)
+            total_cost = numShares * current_price - commission
+        else:
+            raise InvalidOrderError(f"Unsupported trade type: {tradeType}")
+
+        return total_cost
+
     def _check_pending_orders(self, current_price: float):
         for order in self.pending_orders[:]:  # Use slice copy to modify safely
             if not order.active:
@@ -121,17 +144,17 @@ class Backtest:
         current_price = self.hist.loc[valid_date].Close
         self._check_pending_orders(current_price)
         row = self.hist.loc[valid_date]
-        self.strategy.step(row)  # Call step instead of next
+        self.strategy.step(row)  
         return row
 
-    def run(self) -> Dict[str, Any]:
+    def run(self) -> BacktestResult:
         while self.date < self.endDate:
             self.next()
-        return {
-            "final_value": self.totalValue(),
-            "transactions": self.transactions,
-            "strategy": self.strategy
-        }
+        return BacktestResult(
+            final_value=self.totalValue(),
+            transactions=self.transactions,
+            strategy=self.strategy
+        )
 
     def _execute_buy(self, price: float, numShares: int, valid_date: pd.Timestamp, trade_type: TradeType = TradeType.BUY) -> Holding:
         return execute_buy(self, price, numShares, valid_date, trade_type)
@@ -199,3 +222,7 @@ class Backtest:
                 # Add the value of long positions
                 total_value += current_price * holding.numShares
         return total_value
+
+    def getPosition(self) -> int:
+        position = sum(h.numShares if not h.shortPosition else -h.numShares for h in self.holdings)
+        return position

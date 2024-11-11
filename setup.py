@@ -2,9 +2,11 @@ from setuptools import setup, find_packages
 
 setup(
     name="pyBacktest",
-    version="1.1.4",
+    version="1.1.5",
+    #region
     author="Ben Bell",
     author_email="slow111poke@gmail.com",
+    #endregion
     description="A backtesting framework for stock price prediction strategies",
     long_description=open('readme.md').read(),
     long_description_content_type='text/markdown',
