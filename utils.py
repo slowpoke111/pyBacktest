@@ -2,7 +2,8 @@ from typing import List, Union, Tuple
 import pandas as pd
 import numpy as np
 from datetime import datetime, timedelta
-from pyBacktest.backtest import BacktestResult
+from pyBacktest.results import BacktestResult
+import yfinance as yf
 
 def calculateSMA(data: pd.Series, period: int) -> pd.Series:
     return data.rolling(window=period).mean()
@@ -61,30 +62,73 @@ def calculateReturnStats(returns: pd.Series) -> dict:
         "maxDrawdown": calculateDrawdown(returns)[0]
     }
 
-def analyzeResults(results: BacktestResult):
-    initial_investment = 10000
-    final_value = results.final_value
-    total_return = ((final_value - initial_investment) / initial_investment) * 100
-    
-    start_date = results.transactions[0].date
-    end_date = results.strategy.backtest.date
-    days_held = (end_date - start_date).days
+def calculateSortinoRatio(returns: pd.Series, riskFreeRate: float = 0.01) -> float:
+    downside_returns = returns[returns < 0]
+    expected_return = returns.mean() - riskFreeRate / 252
+    downside_deviation = downside_returns.std()
+    return np.sqrt(252) * (expected_return / downside_deviation)
 
-    print("\nStrategy Results:")
-    print(f"Initial Investment: ${initial_investment:,.2f}")
-    print(f"Final Value: ${final_value:,.2f}")
-    print(f"Total Return: {total_return:.2f}%")
-    print(f"Entry Date: {start_date.strftime('%Y-%m-%d')}")
-    print(f"Exit Date: {end_date.strftime('%Y-%m-%d')}")
-    print(f"Days Held: {days_held}")
-    if days_held > 0:
-        annualized_return = (total_return / (days_held/365))
-        print(f"Annualized Return: {annualized_return:.2f}%")
-    
-    print("\nTransactions:")
-    for t in results.transactions:
-        print(f"{t.tradeType}: {t.numShares} shares @ ${t.pricePerShare:.2f}")
-        print(f"Date: {t.date.strftime('%Y-%m-%d')}")
+def calculateTreynorRatio(returns: pd.Series, marketReturns: pd.Series, riskFreeRate: float = 0.01) -> float:
+    beta = calculateBeta(returns, marketReturns)
+    excess_return = returns.mean() - riskFreeRate / 252
+    return excess_return / beta
+
+def calculateVaR(returns: pd.Series, confidence_level: float = 0.95) -> float:
+    return np.percentile(returns, (1 - confidence_level) * 100)
+
+def getPreviousRows(data: pd.DataFrame, date: datetime, periods: int) -> pd.DataFrame:
+    date = pd.Timestamp(date)
+    if date not in data.index:
+        date = data.index[data.index.get_indexer([date], method="nearest")[0]]
+    return data.loc[:date].tail(periods)
+
+def analyzeResults(results1: BacktestResult, results2: BacktestResult, initial_investment: float = 10000) -> dict:
+    final_value1 = results1.final_value
+    final_value2 = results2.final_value
+    total_return1 = ((final_value1 - initial_investment) / initial_investment) * 100
+    total_return2 = ((final_value2 - initial_investment) / initial_investment) * 100
+
+    start_date1 = results1.transactions[0].date
+    end_date1 = results1.strategy.backtest.date
+    days_held1 = (end_date1 - start_date1).days
+
+    start_date2 = results2.transactions[0].date
+    end_date2 = results2.strategy.backtest.date
+    days_held2 = (end_date2 - start_date2).days
+
+    annualized_return1 = (total_return1 / (days_held1 / 365)) if days_held1 > 0 else 0
+    annualized_return2 = (total_return2 / (days_held2 / 365)) if days_held2 > 0 else 0
+
+    comparison = {
+        "initial_investment": initial_investment,
+        "final_value1": final_value1,
+        "final_value2": final_value2,
+        "total_return1": total_return1,
+        "total_return2": total_return2,
+        "annualized_return1": annualized_return1,
+        "annualized_return2": annualized_return2,
+        "start_date1": start_date1,
+        "end_date1": end_date1,
+        "days_held1": days_held1,
+        "start_date2": start_date2,
+        "end_date2": end_date2,
+        "days_held2": days_held2,
+        "transactions1": len(results1.transactions),
+        "transactions2": len(results2.transactions)
+    }
+
+    print("\nStrategy Comparison Results:")
+    print(f"{'Metric':<20} {'Strategy 1':<20} {'Strategy 2':<20}")
+    print(f"{'Initial Investment':<20} ${initial_investment:<20,.2f} ${initial_investment:<20,.2f}")
+    print(f"{'Final Value':<20} ${final_value1:<20,.2f} ${final_value2:<20,.2f}")
+    print(f"{'Total Return':<20} {total_return1:<20.2f}% {total_return2:<20.2f}%")
+    print(f"{'Annualized Return':<20} {annualized_return1:<20.2f}% {annualized_return2:<20.2f}%")
+    print(f"{'Start Date':<20} {start_date1.strftime('%Y-%m-%d'):<20} {start_date2.strftime('%Y-%m-%d'):<20}")
+    print(f"{'End Date':<20} {end_date1.strftime('%Y-%m-%d'):<20} {end_date2.strftime('%Y-%m-%d'):<20}")
+    print(f"{'Days Held':<20} {days_held1:<20} {days_held2:<20}")
+    print(f"{'Transactions':<20} {len(results1.transactions):<20} {len(results2.transactions):<20}")
+
+    return comparison
 
 def compareBacktests(results1: BacktestResult, results2: BacktestResult) -> dict:
     comparison = {
@@ -94,3 +138,8 @@ def compareBacktests(results1: BacktestResult, results2: BacktestResult) -> dict
         "better_strategy": "Strategy 1" if results1.final_value > results2.final_value else "Strategy 2"
     }
     return comparison
+
+def getSP500Returns(start_date: datetime, end_date: datetime) -> pd.Series:
+    sp500 = yf.Ticker('^GSPC')
+    sp500_data = sp500.history(start=start_date, end=end_date)
+    return sp500_data['Close'].pct_change().dropna()

@@ -40,3 +40,10 @@ class Strategy(ABC):
             'position': self.get_position(),
             'total_value': self.backtest.totalValue()
         }
+
+    def applyRiskManagement(self, stop_loss: float, take_profit: float):
+        self.backtest.applyStopLoss(stop_loss)
+        self.backtest.applyTakeProfit(take_profit)
+
+    def rebalance(self, target_allocations: Dict[str, float]):
+        self.backtest.rebalancePortfolio(target_allocations)

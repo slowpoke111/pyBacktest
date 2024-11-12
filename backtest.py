@@ -9,16 +9,12 @@ from pyBacktest.trades import execute_buy, execute_sell, execute_market_buy, exe
 from pyBacktest.tradeTypes import TradeType, Holding, Order, InvalidOrderError
 from pyBacktest.commissions import calculate_commission
 from pyBacktest.orders import cancel_order, submit_gtc_order
+from pyBacktest.utils import calculateVaR
+from pyBacktest.results import BacktestResult
 from dataclasses import dataclass
 
 if TYPE_CHECKING:
     from pyBacktest.strategy import Strategy
-
-@dataclass
-class BacktestResult:
-    final_value: float
-    transactions: List[Holding]
-    strategy: 'Strategy'
 
 class Backtest:
     def __init__(
@@ -140,7 +136,7 @@ class Backtest:
 
     def next(self):
         self.date += self.interval
-        valid_date = self.formatDate(self.date)
+        valid_date = self.getValidDate(self.date)
         current_price = self.hist.loc[valid_date].Close
         self._check_pending_orders(current_price)
         row = self.hist.loc[valid_date]
@@ -226,3 +222,45 @@ class Backtest:
     def getPosition(self) -> int:
         position = sum(h.numShares if not h.shortPosition else -h.numShares for h in self.holdings)
         return position
+
+    def calculatePositionSize(self, risk_per_trade: float, stop_loss: float) -> int:
+        risk_amount = self.cash * risk_per_trade
+        position_size = risk_amount / stop_loss
+        return int(position_size)
+
+    def applyStopLoss(self, stop_loss: float):
+        valid_date = self.getValidDate(self.date)
+        for holding in self.holdings[:]:
+            if holding.shortPosition:
+                if holding.entryPrice * (1 + stop_loss) <= self.hist.loc[valid_date].Close:
+                    self._execute_short_cover(self.hist.loc[valid_date].Close, holding.numShares, valid_date)
+            else:
+                if holding.entryPrice * (1 - stop_loss) >= self.hist.loc[valid_date].Close:
+                    self._execute_sell(self.hist.loc[valid_date].Close, holding.numShares, valid_date)
+
+    def applyTakeProfit(self, take_profit: float):
+        valid_date = self.getValidDate(self.date)
+        for holding in self.holdings[:]:
+            if holding.shortPosition:
+                if holding.entryPrice * (1 - take_profit) >= self.hist.loc[valid_date].Close:
+                    self._execute_short_cover(self.hist.loc[valid_date].Close, holding.numShares, valid_date)
+            else:
+                if holding.entryPrice * (1 + take_profit) <= self.hist.loc[valid_date].Close:
+                    self._execute_sell(self.hist.loc[valid_date].Close, holding.numShares, valid_date)
+
+    def calculateVaR(self, confidence_level: float = 0.95) -> float:
+        returns = self.hist['Close'].pct_change().dropna()
+        return calculateVaR(returns, confidence_level)
+
+    def rebalancePortfolio(self, target_allocations: Dict[str, float]):
+        valid_date = self.getValidDate(self.date)
+        total_value = self.totalValue()
+        for ticker, target_allocation in target_allocations.items():
+            target_value = total_value * target_allocation
+            current_value = sum(h.totalCost for h in self.holdings if h.ticker == ticker)
+            if current_value < target_value:
+                num_shares_to_buy = (target_value - current_value) / self.hist.loc[valid_date].Close
+                self._execute_buy(self.hist.loc[valid_date].Close, int(num_shares_to_buy), valid_date)
+            elif current_value > target_value:
+                num_shares_to_sell = (current_value - target_value) / self.hist.loc[valid_date].Close
+                self._execute_sell(self.hist.loc[valid_date].Close, int(num_shares_to_sell), valid_date)

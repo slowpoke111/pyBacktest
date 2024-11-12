@@ -1,4 +1,5 @@
-from .backtest import Backtest, BacktestResult
+from .backtest import Backtest
+from .results import BacktestResult
 from .strategy import Strategy
 from .tradeTypes import TradeType, Holding, Transaction, Order
 from .utils import (
