@@ -1,6 +1,6 @@
 # Stock Trading Backtest Framework
 
-A Python framework for backtesting trading strategies with support for multiple order types and technical indicators.
+A Python framework for backtesting trading strategies with support for multiple order types and technical indicators. Licensed under the LGPL.
 
 ## Features
 
