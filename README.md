@@ -111,3 +111,6 @@ if __name__ == "__main__":
     print(f"Number of Transactions Difference: {comparison['num_transactions_diff']}")
     print(f"Better Strategy: {comparison['better_strategy']}")
 ```
+---
+### Install
+> pip install pyBacktest
