@@ -114,3 +114,4 @@ if __name__ == "__main__":
 ---
 ### Install
 > pip install pyBacktest
+Docs can be found in the wiki tab. Docs are a work in progress.
