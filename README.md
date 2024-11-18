@@ -10,32 +10,45 @@ A Python framework for backtesting trading strategies with support for multiple 
 
 ## Features
 
-### Trading Operations
-- [x] Market Orders (Buy/Sell)
-- [x] Limit Orders
-- [x] GTC (Good Till Cancelled) Orders
-- [x] Short
-- [x] Commission Handling
+### **Trading Operations**
+- [x] **Market Orders** (Buy/Sell)
+- [x] **Limit Orders**
+- [x] **GTC (Good Till Canceled) Orders**
+- [x] **Short Selling** (Sell and Cover Short Positions)
+- [x] **Commission Handling**
     - [x] Flat Fee
     - [x] Percentage
     - [x] Per Share
+- [x] **Order Expiry Handling**
+    - [x] Automatically cancels expired orders
+- [x] **Order Queue Management**
+    - [x] Pending Orders handled by priority queue
 
-### Technical Indicators
-- [x] Simple Moving Average (SMA)
-- [x] Exponential Moving Average (EMA)
-- [x] Relative Strength Index (RSI)
-- [x] Bollinger Bands
-- [x] MACD (Moving Average Convergence Divergence)
-- [x] Crossover Detection
-- [x] Volume Weighted Average Price (VWAP)
-- [x] Average True Range (ATR)
+### **Technical Indicators**
+- [x] **Simple Moving Average** (SMA)
+- [x] **Exponential Moving Average** (EMA)
+- [x] **Relative Strength Index** (RSI)
+- [x] **Bollinger Bands**
+- [x] **MACD** (Moving Average Convergence Divergence)
+- [x] **Crossover Detection** (SMA, EMA, MACD)
+- [x] **Volume Weighted Average Price** (VWAP)
+- [x] **Average True Range** (ATR)
+- [x] **Indicator Calculation Integration**
+    - [x] SMA, EMA, MACD available within strategy context
 
-### Portfolio Management
-- [x] Position Tracking
-- [x] Transaction History
-- [x] Portfolio Valuation
-- [x] Cash Management
-- [x] Performance Metrics
+### **Portfolio Management**
+- [x] **Position Tracking**
+    - [x] Track open positions and entry points
+- [x] **Transaction History**
+    - [x] Records details of executed trades
+- [x] **Portfolio Valuation**
+    - [x] Calculates current portfolio value based on market prices
+- [x] **Cash Management**
+    - [x] Tracks available cash for trades
+- [x] **Performance Metrics**
+    - [x] Risk metrics, returns, and other performance statistics (e.g., Sharpe ratio, Drawdown, etc.)
+
+
 
 ## Example
 
