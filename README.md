@@ -2,6 +2,12 @@
 
 A Python framework for backtesting trading strategies with support for multiple order types and technical indicators. Licensed under the LGPL.
 
+---
+## Install
+#### pip install pyBacktest
+> Docs can be found in the wiki tab. Docs are a work in progress.
+---
+
 ## Features
 
 ### Trading Operations
@@ -111,10 +117,8 @@ if __name__ == "__main__":
     print(f"Number of Transactions Difference: {comparison['num_transactions_diff']}")
     print(f"Better Strategy: {comparison['better_strategy']}")
 ```
+
 ---
-## Install
-> pip install pyBacktest
-Docs can be found in the wiki tab. Docs are a work in progress.
 
 ## Diagrams
 > Diagrams are not guaranteed to be up to date.
