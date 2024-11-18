@@ -112,6 +112,223 @@ if __name__ == "__main__":
     print(f"Better Strategy: {comparison['better_strategy']}")
 ```
 ---
-### Install
+## Install
 > pip install pyBacktest
 Docs can be found in the wiki tab. Docs are a work in progress.
+
+## Diagrams
+> Diagrams are not guaranteed to be up to date.
+### Structure
+```mermaid
+classDiagram
+    class Backtest {
+        - strategy: Strategy
+        - ticker: str
+        - commission: float
+        - startDate: datetime
+        - endDate: datetime
+        - cash: float
+        + run() BacktestResult
+        + trade(tradeType: TradeType, numShares: int, price: float, duration: str)
+        + getPosition() int
+        + calculate_trade_cost(tradeType: TradeType, numShares: int, price: float) float
+    }
+
+    class Strategy {
+        # backtest: Backtest
+        + setup() void
+        + step(row: pd.Series) void
+    }
+
+    class SMACross {
+        + setup() void
+        + step(row: pd.Series) void
+    }
+
+    class MACDStrategy {
+        + setup() void
+        + step(row: pd.Series) void
+    }
+
+    Strategy <|-- SMACross
+    Strategy <|-- MACDStrategy
+    Backtest o--> Strategy
+    Backtest o--> TradeType
+    Backtest o--> Holding
+    Backtest o--> Transaction
+    Backtest o--> Order
+
+    class TradeType {
+        <<Enumeration>>
+        + BUY
+        + SELL
+        + SHORT_SELL
+        + STOP
+        + COVER
+        + GTC
+        + MARKET_BUY
+        + MARKET_SELL
+        + SHORT_COVER
+        + LIMIT_BUY
+        + LIMIT_SELL
+    }
+
+    class Holding {
+        - tradeType: TradeType
+        - ticker: str
+        - commission: float
+        - executedSuccessfully: bool
+        - numShares: int
+        - totalCost: float
+        - entryPrice: float
+        - shortPosition: bool
+    }
+
+    class Transaction {
+        - tradeType: TradeType
+        - ticker: str
+        - commission: float
+        - executedSuccessfully: bool
+        - numShares: int
+        - pricePerShare: float
+        - totalCost: float
+        - date: datetime
+        - profitLoss: float
+        - notes: str
+    }
+
+    class Order {
+        - tradeType: TradeType
+        - ticker: str
+        - numShares: int
+        - targetPrice: float
+        - duration: str
+        - orderDate: datetime
+        - active: bool
+        - limitPrice: float
+    }
+
+    class Utils {
+        + calculateSMA(data: pd.Series, period: int) pd.Series
+        + calculateMACD(data: pd.Series, fastPeriod: int, slowPeriod: int, signalPeriod: int) tuple
+        + analyzeResults(result: BacktestResult) dict
+        + compareBacktests(result1: BacktestResult, result2: BacktestResult) dict
+    }
+
+    Backtest --> Utils
+
+```
+
+### Backtest callchain
+```mermaid
+sequenceDiagram
+    participant User as User
+    participant Backtest as Backtest
+    participant Strategy as Strategy
+    participant Utils as Utils
+    participant TradeTypes as TradeType
+    participant DataLoader as DataLoader
+    participant Results as BacktestResult
+
+    User->>Backtest: Initialize Backtest(ticker, strategy, dates, cash)
+    Backtest->>DataLoader: Load Historical Data
+    DataLoader-->>Backtest: Return Historical Data
+    Backtest->>Strategy: Instantiate Strategy
+    Backtest->>Strategy: Call setup()
+    Strategy-->>Backtest: Initialize Strategy Variables
+
+    loop For each data row
+        Backtest->>Strategy: Call step(row)
+        Strategy->>TradeTypes: Create Trade (if conditions met)
+        TradeTypes-->>Backtest: Return Trade Details
+        Backtest->>Backtest: Update Portfolio & Cash
+    end
+
+    Backtest->>Results: Generate Backtest Results
+    Results-->>Backtest: Return BacktestResult Object
+
+    User->>Utils: Analyze Results(BacktestResult)
+    Utils-->>User: Return Metrics and Insights
+    User->>Backtest: Compare Strategies(optional)
+    Backtest->>Utils: CompareBacktests(results1, results2)
+    Utils-->>User: Return Comparison Summary
+```
+
+### Components
+```mermaid
+graph TD
+    A[Backtest Framework] --> B[Strategy Module]
+    A --> C[Utils Module]
+    A --> D[tradeTypes Module]
+    A --> E[Data Handling]
+    B --> F[Custom Strategies]
+    C --> G[Indicator Calculations]
+    C --> H[Risk Metrics]
+    E --> I[Data Loader]
+    E --> J[Data Validator]
+    D --> K[TradeType Enum]
+    D --> L[Order Class]
+```
+
+### State Diagram
+```mermaid
+stateDiagram-v2
+    state Backtest {
+        [*] --> Initialized
+        Initialized --> Running : run()
+        Running --> Paused : pause()
+        Running --> Completed : all data processed
+        Paused --> Running : resume()
+        Completed --> Archived : save results
+    }
+
+    state Order {
+        [*] --> Pending
+        Pending --> Executed : conditions met
+        Pending --> Expired : time elapsed
+        Executed --> Completed : trade settled
+        Completed --> Archived : recorded in transactions
+    }
+```
+### Data Flow
+```mermaid
+graph TD
+    A[Input Data] -->|Load| B[DataFrame]
+    B -->|Validate| C[Backtest Engine]
+    C -->|Feed| D[Strategy Execution]
+    D -->|Generate| E[Trades]
+    E -->|Record| F[Transactions]
+    F -->|Summarize| G[Performance Analysis]
+    G -->|Output| H[Results]
+```
+### Interaction Overview
+```mermaid
+sequenceDiagram
+    participant User
+    participant Backtest
+    participant Strategy
+    participant Utils
+    User->>Backtest: Initialize Backtest
+    Backtest->>Utils: Load and validate data
+    Backtest->>Strategy: Setup
+    loop For each data point
+        Backtest->>Strategy: step()
+        Strategy->>Backtest: trade()
+    end
+    Backtest->>Utils: Analyze Results
+    Backtest->>User: Return Results
+```
+
+### Error Handling
+```mermaid
+flowchart TD
+    A[Run Backtest] --> B[Trade Attempt]
+    B -->|Funds Available| C[Execute Trade]
+    B -->|Funds Insufficient| D[Raise InsufficientFundsError]
+    C -->|Valid Trade| E[Update Transactions]
+    C -->|Invalid Trade| F[Raise InvalidOrderError]
+    E --> G[Continue Backtest]
+    F --> G
+    D --> G
+```
+
