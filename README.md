@@ -336,3 +336,22 @@ flowchart TD
     D --> G
 ```
 
+### Dependincies 
+```mermaid
+graph TD
+    A[SPDX Document: com.github.slowpoke111/pyBacktest] --> B[Numpy]
+    A --> C[Pandas]
+    A --> D[YFinance]
+    A --> E[Typing Extensions]
+    A --> F[GH Action: PyPI Publish]
+    A --> G[GH Action: Checkout]
+    A --> H[GH Action: Setup Python]
+
+    B -->|Package Manager| P1[pypi/numpy]
+    C -->|Package Manager| P2[pypi/pandas]
+    D -->|Package Manager| P3[pypi/yfinance]
+    E -->|Package Manager| P4[pypi/typing-extensions]
+    F -->|Package Manager| P5[githubactions/pypa/gh-action-pypi-publish]
+    G -->|Package Manager| P6[githubactions/actions/checkout]
+    H -->|Package Manager| P7[githubactions/actions/setup-python]
+```
