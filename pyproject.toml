@@ -22,7 +22,7 @@ classifiers = [
     "License :: OSI Approved :: GNU Lesser General Public License v3 (LGPLv3)",
     "Operating System :: OS Independent"
 ]
-readme = "readme.md"
+readme = "README.md"
 
 [project.urls]
 Home = "https://github.com/slowpoke111/pyBacktest"
