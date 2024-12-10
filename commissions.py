@@ -10,4 +10,4 @@ def calculate_commission(commisionType: str, commision: float, price: float, num
     elif commisionType == "PER_SHARE":
         return commision * numShares
     else:
-        raise InvalidCommissionTypeError(f"Invalid commission type: {commisionType}")
+        raise InvalidCommissionTypeError(f"Invalid commission type: {commisionType}, accepted types are FLAT, PERCENTAGE, PERCENTAGE_PER_SHARE, and PER_SHARE")
