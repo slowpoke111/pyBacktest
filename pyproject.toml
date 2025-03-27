@@ -4,10 +4,10 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "pyBacktest"
-version = "1.1.5"
+version = "1.1.8"
 description = "A backtesting framework for stock price prediction strategies"
 authors = [
-    { name = "Ben Bell", email = "slow111poke@gmail.com" }
+    { name = "Ben Bell", email = "ben567755@gmail.com" }
 ]
 dependencies = [
     "pandas",
