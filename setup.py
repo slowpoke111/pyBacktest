@@ -5,7 +5,7 @@ setup(
     version="1.1.5",
     #region
     author="Ben Bell",
-    author_email="slow111poke@gmail.com",
+    author_email="ben567755@gmail.com",
     #endregion
     description="A backtesting framework for stock price prediction strategies",
     long_description=open('README.md').read(),
