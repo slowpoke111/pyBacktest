@@ -2,6 +2,9 @@
 
 A Python framework for backtesting trading strategies with support for multiple order types and technical indicators. Licensed under the LGPL.
 
+> Email ben567755 [at] gmail[.]com with questions
+>
+
 ---
 ## Install
 #### pip install pyBacktest
